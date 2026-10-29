@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#061018">
+<title>CTH Village Life 3D</title>
+<style>
+:root{--cyan:#00f0ff;--bg:#061018;--panel:rgba(5,15,25,.92)}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:Arial,sans-serif;color:white;touch-action:none}
+button{border:1px solid #00eaff88;background:#071b29;color:#eaffff;border-radius:10px;padding:11px 14px;font-weight:bold}
+button:active{background:#087b8a}
+#game{position:fixed;inset:0}
+#top{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;background:linear-gradient(#031019eF,transparent);pointer-events:none}
+#top>*{pointer-events:auto}
+.logo{font-weight:900;color:var(--cyan);text-shadow:0 0 12px #00dfff}
+.small{font-size:11px;color:#b8dce6;margin-top:4px}
+#hud{position:fixed;top:75px;left:10px;display:grid;gap:7px;pointer-events:none}
+.hudbox{background:var(--panel);border:1px solid #00eaff55;border-radius:10px;padding:8px 11px;font-size:12px}
+#map{width:105px;height:105px;background:#071820;border:1px solid var(--cyan);border-radius:12px}
+#rightControls{position:fixed;right:12px;bottom:22px;display:grid;gap:10px}
+.control{width:59px;height:59px;border-radius:50%;background:#061d2ad9;border:1px solid var(--cyan);font-size:12px}
+#joyBase{position:fixed;left:20px;bottom:28px;width:130px;height:130px;border-radius:50%;background:#00dfff15;border:2px solid #00eaff70;touch-action:none}
+#joyKnob{position:absolute;width:50px;height:50px;left:38px;top:38px;border-radius:50%;background:#00eaff70;border:2px solid #b5faff}
+#message{position:fixed;left:50%;top:24%;transform:translateX(-50%);background:#061820eF;border:1px solid var(--cyan);padding:12px 17px;border-radius:12px;text-align:center;max-width:85%;display:none}
+.overlay{position:fixed;inset:0;background:linear-gradient(135deg,#04101af5,#061a29f5);display:flex;align-items:center;justify-content:center;padding:18px;z-index:10;overflow:auto}
+.card{width:min(440px,100%);max-height:92vh;overflow:auto;padding:24px;border:1px solid #00eaff80;border-radius:22px;background:linear-gradient(145deg,#102431,#061018);box-shadow:0 0 40px #00bcd433;text-align:center}
+h1{font-size:27px;color:var(--cyan);margin:8px 0}
+p{color:#c0d8df;line-height:1.55;font-size:13px}
+.menuBtns{display:grid;gap:10px;margin-top:18px}
+.menuBtns button{width:100%;padding:14px}
+.secondary{background:#14202b}
+#loading{font-size:12px;color:#b7dbe4;margin-top:10px;min-height:18px}
+#credit{font-size:10px;color:#8bb5c4;margin-top:16px}
+#osmCredit{position:fixed;right:5px;bottom:3px;font-size:9px;color:#d5edf1;background:#061018b8;padding:3px;pointer-events:auto}
+#modal{display:none;position:fixed;inset:0;z-index:9;align-items:center;justify-content:center;background:#0009;padding:20px}
+#modal .card{text-align:left}
+#modal button{margin-top:8px}
+#hint{position:fixed;bottom:4px;left:50%;transform:translateX(-50%);font-size:10px;color:#d2e8ed;background:#061018a8;padding:4px 8px;border-radius:6px;white-space:nowrap}
+@media(max-width:430px){.logo{font-size:13px}#map{width:85px;height:85px}.control{width:53px;height:53px}#joyBase{width:118px;height:118px;left:14px;bottom:22px}#joyKnob{left:32px;top:32px}#hud{top:67px}}
+</style>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="top">
+  <div>
+    <div class="logo">⚡ CTH VILLAGE LIFE 3D</div>
+    <div class="small">CHAKMIRPUR • DAULATPUR • MANIKGANJ</div>
+  </div>
+  <canvas id="map" width="150" height="150"></canvas>
+</div>
+
+<div id="hud">
+  <div class="hudbox">📍 <span id="location">চকমিরপুর</span></div>
+  <div class="hudbox">🎯 মিশন: <span id="missionNo">1</span>/4</div>
+  <div class="hudbox">🚶 গতি: <span id="speed">0</span></div>
+</div>
+
+<div id="joyBase"><div id="joyKnob"></div></div>
+<div id="rightControls">
+  <button class="control" id="jumpBtn">⬆<br>JUMP</button>
+  <button class="control" id="runBtn">🏃<br>RUN</button>
+  <button class="control" id="carBtn">🚗<br>CAR</button>
+  <button class="control" id="menuBtn">☰<br>MENU</button>
+</div>
+<div id="message"></div>
+<div id="hint">জয়স্টিক দিয়ে চলুন • স্ক্রিনের ফাঁকা জায়গায় ড্র্যাগ করে ক্যামেরা ঘোরান</div>
+<div id="osmCredit">Map data © OpenStreetMap contributors</div>
+
+<div class="overlay" id="lobby">
+  <div class="card">
+    <div style="font-size:48px">🌴🏡🌾</div>
+    <h1>CTH VILLAGE LIFE 3D</h1>
+    <p>চকমিরপুরের অনুপ্রেরণায় তৈরি একটি 3D গ্রাম এক্সপ্লোরেশন গেম। ঘুরে দেখো, গাড়ি চালাও এবং মিশন সম্পন্ন করো।</p>
+    <div class="menuBtns">
+      <button id="playBtn">▶ PLAY GAME</button>
+      <button id="missionBtn" class="secondary">🎯 MISSIONS</button>
+      <button id="settingsBtn" class="secondary">⚙ SETTINGS</button>
+    </div>
+    <div id="loading">বাস্তব মানচিত্রের ডেটা প্রস্তুত হচ্ছে না—গেম চালু করলে চেষ্টা করা হবে।</div>
+    <div id="credit">DEVELOPED BY SHADOW JOKER • CTH</div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="card">
+    <h1 id="modalTitle">SETTINGS</h1>
+    <div id="modalBody"></div>
+    <button id="closeModal">CLOSE</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+(() => {
+"use strict";
+
+const $ = id => document.getElementById(id);
+const WORLD = {lat:23.96928, lon:89.83102, radius:1300};
+let scene,camera,renderer,clock,player,playerGroup;
+let started=false, mapLoaded=false, mapLoading=false;
+let speed=0, moving=false, running=false, inCar=false, jumpVelocity=0;
+let yaw=0, pitch=.25, joyX=0, joyY=0;
+let lastMessage=0, missionIndex=0, missionsDone=0;
+let roads=[], buildings=[], npcs=[], cars=[], trees=[];
+let checkpoints=[], mapObjects=[];
+let quality="high", soundEnabled=false;
+const keys={};
+const v3=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
+
+function msg(text,ms=2300){
+  $("message").textContent=text;
+  $("message").style.display="block";
+  lastMessage=performance.now()+ms;
+}
+function hideMsg(){
+  if(performance.now()>lastMessage)$("message").style.display="none";
+}
+function rand(a,b){return a+Math.random()*(b-a)}
+function mat(color,roughness=1){return new THREE.MeshStandardMaterial({color,roughness})}
+function box(w,h,d,color,x,y,z, parent=scene){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color));
+  m.position.set(x,y,z);parent.add(m);return m;
+}
+function cylinder(rt,rb,h,color,x,y,z,parent=scene){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,8),mat(color));
+  m.position.set(x,y,z);parent.add(m);return m;
+}
+function flatCircle(r,color,x,y,z){
+  const m=new THREE.Mesh(new THREE.CircleGeometry(r,32),new THREE.MeshBasicMaterial({color,side:THREE.DoubleSide}));
+  m.rotation.x=-Math.PI/2;m.position.set(x,y,z);scene.add(m);return m;
+}
+function ground(){
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000),mat(0x5e9b51));
+  g.rotation.x=-Math.PI/2;g.position.y=-.08;scene.add(g);
+  // Open rural landscape variation
+  for(let i=0;i<120;i++){
+    const x=rand(-650,650),z=rand(-650,650);
+    if(Math.abs(x)<20||Math.abs(z)<20)continue;
+    const field=box(rand(8,30),.035,rand(8,28),[0x6ba84e,0x82b85a,0x4e8d48][i%3],x,-.02,z);
+    field.material.side=THREE.DoubleSide;
+  }
+}
+function makeRoad(x1,z1,x2,z2,width=5,color=0x565c5d){
+  const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz);
+  const m=box(width,.06,len,color,(x1+x2)/2,.015,(z1+z2)/2);
+  m.rotation.y=Math.atan2(dx,dz);roads.push(m);return m;
+}
+function house(x,z,scale=1,color=null){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+  const w=rand(5,9)*scale,d=rand(5,9)*scale,h=rand(3.2,4.6)*scale;
+  box(w,h,d,color||[0xd4c4a0,0xc4b6a0,0xb8c9c4,0xe2d4b7][Math.floor(rand(0,4))],0,h/2,0,g);
+  // roof
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(Math.max(w,d)*.76,1.8*scale,4),mat(0x8d4435));
+  roof.rotation.y=Math.PI/4;roof.position.y=h+0.75*scale;g.add(roof);
+  box(w*.23,h*.42,.08,0x62432b,0,h*.22,d/2+.04,g);
+  box(w*.2,h*.22,.1,0x73c7dd,-w*.25,h*.58,d/2+.06,g);
+  box(w*.2,h*.22,.1,0x73c7dd,w*.25,h*.58,d/2+.06,g);
+  buildings.push(g);return g;
+}
+function tree(x,z,s=1){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+  cylinder(.18*s,.28*s,1.8*s,0x745037,0,.9*s,0,g);
+  const colors=[0x247b3c,0x2d8b42,0x368f43];
+  for(let i=0;i<3;i++){
+    const crown=new THREE.Mesh(new THREE.SphereGeometry((1.05-i*.15)*s,8,7),mat(colors[i]));
+    crown.position.set(rand(-.15,.15),1.8*s+i*.42*s,rand(-.15,.15));g.add(crown);
+  }
+  trees.push(g);
+}
+function person(x,z,color=0x2f83e8){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+  cylinder(.28,.32,.95,color,0,1.12,0,g);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.22,12,10),mat(0xd9a47b));
+  head.position.y=1.78;g.add(head);
+  box(.16,.55,.17,0x202c36,-.12,.27,0,g);
+  box(.16,.55,.17,0x202c36,.12,.27,0,g);
+  npcs.push({g,home:v3(x,0,z),phase:rand(0,6),speed:rand(.25,.8)});
+  return g;
+}
+function car(x,z,color=0xe0bd38){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+  box(2.1,.65,4,color,0,.65,0,g);
+  box(1.65,.7,1.8,0x5fabb9,0,1.28,-.15,g);
+  for(const wx of [-1.05,1.05])for(const wz of [-1.25,1.25]){
+    const w=cylinder(.34,.34,.2,0x171b20,wx,.35,wz,g);w.rotation.z=Math.PI/2;
+  }
+  cars.push({g,phase:rand(0,8),homeX:x,homeZ:z});
+  return g;
+}
+function footballField(){
+  box(44,.04,28,0x338b40,0,.025,-75);
+  for(let z=-89;z<=-61;z+=28){
+    box(44,.025,.12,0xffffff,0,.06,z);
+  }
+  box(.12,.025,28,0xffffff,0,.065,-75);
+  flatCircle(3,0xffffff,0,.07,-75);
+  box(.15,2.5,.15,0xffffff,0,1.25,-89);
+  box(.15,2.5,.15,0xffffff,0,1.25,-61);
+  msg("⚽ ফুটবল মাঠ তৈরি হয়েছে",1800);
+}
+function school(){
+  const g=new THREE.Group();scene.add(g);g.position.set(-34,0,-45);
+  box(19,6,10,0xe6d7b6,0,3,0,g);
+  box(20,1.1,11,0x9a4437,0,6.4,0,g);
+  box(2.5,3,.12,0x513d2c,0,1.5,5.07,g);
+  for(let i=-3;i<=3;i++){
+    box(1.5,1.3,.1,0x73cde3,i*2.3,3.5,5.08,g);
+  }
+  for(let i=0;i<7;i++)person(-45+i*3.5,-35,0x2e70d3);
+}
+function createCheckpoint(x,z,i){
+  const g=new THREE.Group();scene.add(g);g.position.set(x,0,z);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.8,.12,8,24),new THREE.MeshBasicMaterial({color:0x00f0ff}));
+  ring.position.y=1.5;g.add(ring);
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,3,8),new THREE.MeshBasicMaterial({color:0x00eaff}));
+  beam.position.y=1.5;g.add(beam);
+  checkpoints.push({g,x,z,i,ring});
+}
+function createWorld(){
+  ground();
+  // Starting village roads and lanes
+  makeRoad(-280,0,280,0,9);
+  makeRoad(0,-280,0,280,9);
+  makeRoad(-220,-100,220,-100,5);
+  makeRoad(-180,100,180,100,5);
+  makeRoad(-100,-220,-100,220,5);
+  makeRoad(100,-220,100,220,5);
+  for(let i=0;i<34;i++){
+    const x=rand(-250,250),z=rand(-250,250);
+    if(Math.abs(x)<17||Math.abs(z)<17)continue;
+    if(Math.abs(z+75)<24&&Math.abs(x)<30)continue;
+    if(Math.abs(x+34)<15&&Math.abs(z+45)<12)continue;
+    house(x,z,rand(.7,1.2));
+  }
+  for(let i=0;i<130;i++){
+    const x=rand(-320,320),z=rand(-320,320);
+    if(Math.abs(x)<12||Math.abs(z)<12)continue;
+    tree(x,z,rand(.65,1.3));
+  }
+  school();footballField();
+  for(let i=0;i<20;i++)person(rand(-80,80),rand(-120,120),[0x2c72d2,0xe8a13a,0x4a9e62,0xb04b58][i%4]);
+  car(-12,0,0xe0bd38);car(0,18,0x3478d4);car(110,0,0xeeeeee);
+  // Mission points
+  createCheckpoint(24,24,1);
+  createCheckpoint(-34,-45,2);
+  createCheckpoint(0,-75,3);
+  createCheckpoint(90,90,4);
+  makePlayer();
+}
+function makePlayer(){
+  playerGroup=new THREE.Group();scene.add(playerGroup);
+  // simple stylized third-person character
+  const body=new THREE.Mesh(new THREE.CapsuleGeometry(.38,.75,4,8),mat(0x167ce0));
+  body.position.y=1.05;playerGroup.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.27,14,12),mat(0xd5a07a));
+  head.position.y=1.85;playerGroup.add(head);
+  const hair=new THREE.Mesh(new THREE.SphereGeometry(.275,12,8,0,Math.PI*2,0,Math.PI/2),mat(0x211a17));
+  hair.position.y=2;playerGroup.add(hair);
+  const legMat=mat(0x252e39);
+  for(const x of [-.17,.17]){
+    const leg=new THREE.Mesh(new THREE.CapsuleGeometry(.12,.55,3,6),legMat);
+    leg.position.set(x,.38,0);playerGroup.add(leg);
+  }
+  player=playerGroup;
+  player.position.set(0,0,10);
+}
+function init(){
+  if(!window.THREE){
+    $("loading").textContent="Three.js লোড হয়নি। ইন্টারনেট চালু করে পেজটি আবার খুলুন।";
+    return;
+  }
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x91c6dc);scene.fog=new THREE.Fog(0x91c6dc,180,700);
+  camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,3000);
+  renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,quality==="high"?1.7:1.1));
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.shadowMap.enabled=quality==="high";
+  $("game").appendChild(renderer.domElement);
+  scene.add(new THREE.HemisphereLight(0xd9f5ff,0x557245,2));
+  const sun=new THREE.DirectionalLight(0xfff2d1,2.2);sun.position.set(-80,150,50);
+  sun.castShadow=quality==="high";scene.add(sun);
+  clock=new THREE.Clock();
+  createWorld();
+  updateCamera(1);
+  window.addEventListener("resize",()=>{
+    camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+  animate();
+  $("loading").textContent="গেম প্রস্তুত। Play চাপুন। বাস্তব ম্যাপের জন্য ইন্টারনেট লাগবে।";
+  // Load map after the demo scene is ready
+  setTimeout(loadRealMap,900);
+}
+function updateCamera(dt){
+  if(!player)return;
+  const distance=inCar?10:8;
+  const target=v3(player.position.x,player.position.y+(inCar?1.5:1.4),player.position.z);
+  const desired=v3(
+    target.x+Math.sin(yaw)*Math.cos(pitch)*distance,
+    target.y+Math.sin(pitch)*distance+1.3,
+    target.z+Math.cos(yaw)*Math.cos(pitch)*distance
+  );
+  camera.position.lerp(desired,Math.min(1,dt*5));
+  camera.lookAt(target);
+}
+function animate(){
+  requestAnimationFrame(animate);
+  if(!renderer||!scene)return;
+  const dt=Math.min(clock.getDelta(),.05);
+  if(started&&player){
+    let dx=joyX,dz=joyY;
+    if(keys.w||keys.ArrowUp)dz-=1;
+    if(keys.s||keys.ArrowDown)dz+=1;
+    if(keys.a||keys.ArrowLeft)dx-=1;
+    if(keys.d||keys.ArrowRight)dx+=1;
+    const mag=Math.hypot(dx,dz);
+    if(mag>1){dx/=mag;dz/=mag}
+    moving=mag>.08;
+    const sp=(running?12:6)*(inCar?2.1:1);
+    speed=moving?sp:0;
+    if(moving){
+      const forwardX=Math.cos(yaw)*dx-Math.sin(yaw)*dz;
+      const forwardZ=Math.sin(yaw)*dx+Math.cos(yaw)*dz;
+      player.position.x+=forwardX*sp*dt;
+      player.position.z+=forwardZ*sp*dt;
+      player.rotation.y=Math.atan2(forwardX,forwardZ);
+    }
+    if(jumpVelocity!==0||player.position.y>0){
+      player.position.y+=jumpVelocity*dt;
+      jumpVelocity-=18*dt;
+      if(player.position.y<0){player.position.y=0;jumpVelocity=0}
+    }
+    for(const n of npcs){
+      n.phase+=dt*n.speed;
+      n.g.position.x=n.home.x+Math.sin(n.phase)*1.8;
+      n.g.position.z=n.home.z+Math.cos(n.phase*.8)*1.8;
+      n.g.rotation.y=Math.sin(n.phase)*.6;
+    }
+    for(const c of cars){
+      c.phase+=dt*.45;
+      c.g.position.x=c.homeX+Math.sin(c.phase)*18;
+      c.g.position.z=c.homeZ+Math.cos(c.phase)*18;
+      c.g.rotation.y=Math.atan2(Math.cos(c.phase),-Math.sin(c.phase));
+    }
+    checkpoints.forEach(cp=>{
+      cp.ring.rotation.z+=dt*.7;
+      if(cp.i===missionIndex+1&&Math.hypot(player.position.x-cp.x,player.position.z-cp.z)<4){
+        missionIndex=Math.min(4,missionIndex+1);missionsDone++;
+        $("missionNo").textContent=Math.min(4,missionIndex);
+        msg(missionIndex>=4?"🏆 সব মিশন সম্পন্ন!":"✅ চেকপয়েন্ট সম্পন্ন! পরেরটি খুঁজে বের করো");
+      }
+    });
+    $("speed").textContent=Math.round(speed);
+    $("location").textContent=Math.hypot(player.position.x,player.position.z)<40?"চকমিরপুর":Math.hypot(player.position.x+34,player.position.z+45)<25?"স্কুল এলাকা":Math.hypot(player.position.x,player.position.z+75)<30?"ফুটবল মাঠ":"গ্রাম এলাকা";
+    updateCamera(dt);
+    drawMiniMap();
+    hideMsg();
+  }
+  renderer.render(scene,camera);
+}
+function drawMiniMap(){
+  const c=$("map"),ctx=c.getContext("2d"),w=c.width,h=c.height;
+  ctx.fillStyle="#10291f";ctx.fillRect(0,0,w,h);
+  const scale=.19,cx=w/2,cy=h/2;
+  ctx.strokeStyle="#737d7e";ctx.lineWidth=4;
+  for(const r of roads){
+    const p=r.position;
+    ctx.beginPath();
+    ctx.moveTo(cx+(p.x-r.geometry.parameters.width/2)*scale,cy+(p.z-r.geometry.parameters.depth/2)*scale);
+    ctx.lineTo(cx+(p.x+r.geometry.parameters.width/2)*scale,cy+(p.z+r.geometry.parameters.depth/2)*scale);
+    ctx.stroke();
+  }
+  ctx.fillStyle="#a8cba2";
+  for(const b of buildings){
+    ctx.fillRect(cx+b.position.x*scale-2,cy+b.position.z*scale-2,4,4);
+  }
+  if(player){
+    ctx.fillStyle="#00f0ff";ctx.beginPath();ctx.arc(cx+player.position.x*scale,cy+player.position.z*scale,4,0,Math.PI*2);ctx.fill();
+  }
+  ctx.fillStyle="#ffdc64";
+  checkpoints.forEach(cp=>{
+    if(cp.i===missionIndex+1){ctx.beginPath();ctx.arc(cx+cp.x*scale,cy+cp.z*scale,3,0,Math.PI*2);ctx.fill()}
+  });
+}
+// Real OpenStreetMap data. Converts latitude/longitude into local meters.
+function geoLocal(lat,lon){
+  const lat0=WORLD.lat*Math.PI/180;
+  return {
+    x:(lon-WORLD.lon)*111320*Math.cos(lat0),
+    z:-(lat-WORLD.lat)*111320
+  };
+}
+function pathLine(points,width,color,y=.09){
+  if(points.length<2)return;
+  const verts=[];
+  for(const p of points){verts.push(p.x,y,p.z)}
+  const geom=new THREE.BufferGeometry();
+  geom.setAttribute("position",new THREE.Float32BufferAttribute(verts,3));
+  const line=new THREE.Line(geom,new THREE.LineBasicMaterial({color,linewidth:width}));
+  scene.add(line);mapObjects.push(line);
+}
+function polygon(points,color,height=0){
+  if(points.length<3)return;
+  const shape=new THREE.Shape();
+  shape.moveTo(points[0].x,-points[0].z);
+  for(let i=1;i<points.length;i++)shape.lineTo(points[i].x,-points[i].z);
+  shape.closePath();
+  const geom=new THREE.ExtrudeGeometry(shape,{depth:height,bevelEnabled:false});
+  const mesh=new THREE.Mesh(geom,mat(color));
+  // Shape uses XY; rotate into XZ with height pointing upward.
+  mesh.rotation.x=-Math.PI/2;
+  mesh.position.y=0.1;
+  scene.add(mesh);mapObjects.push(mesh);
+}
+function addOSMFeature(el){
+  const geom=el.geometry;
+  if(!geom||geom.length<1)return;
+  const pts=geom.map(p=>geoLocal(p.lat,p.lon));
+  const tags=el.tags||{};
+  if(tags.highway){
+    let width=2.5;
+    if(["primary","secondary","tertiary","trunk"].includes(tags.highway))width=5;
+    else if(["residential","unclassified","living_street"].includes(tags.highway))width=3.5;
+    const roadMat=new THREE.MeshStandardMaterial({color:0x64696b,roughness:1});
+    for(let i=1;i<pts.length;i++){
+      const a=pts[i-1],b=pts[i],len=Math.hypot(b.x-a.x,b.z-a.z);
+      if(len<.2)continue;
+      const m=new THREE.Mesh(new THREE.BoxGeometry(width,.035,len),roadMat);
+      m.position.set((a.x+b.x)/2,.045,(a.z+b.z)/2);
+      m.rotation.y=Math.atan2(b.x-a.x,b.z-a.z);
+      scene.add(m);mapObjects.push(m);
+    }
+  }else if(tags.building){
+    if(pts.length<3)return;
+    // Extrude with correct upward height and local positioning
+    const center=pts.reduce((a,p)=>({x:a.x+p.x,z:a.z+p.z}),{x:0,z:0});
+    center.x/=pts.length;center.z/=pts.length;
+    const shape=new THREE.Shape();
+    shape.moveTo(pts[0].x-center.x,-(pts[0].z-center.z));
+    for(let i=1;i<pts.length;i++)shape.lineTo(pts[i].x-center.x,-(pts[i].z-center.z));
+    shape.closePath();
+    const h=Number(tags["building:levels"]||1)*2.8;
+    const g=new THREE.ExtrudeGeometry(shape,{depth:h,bevelEnabled:false});
+    const m=new THREE.Mesh(g,mat(0xc6bba2));
+    m.rotation.x=-Math.PI/2;m.position.set(center.x,.08,center.z);
+    scene.add(m);mapObjects.push(m);
+  }else if(tags.amenity||tags.leisure||tags.shop||tags.place){
+    const p=pts[0];
+    const marker=new THREE.Mesh(new THREE.CylinderGeometry(.65,.65,.25,10),mat(0x00cfe8));
+    marker.position.set(p.x,.25,p.z);scene.add(marker);mapObjects.push(marker);
+  }
+}
+async function loadRealMap(){
+  if(mapLoaded||mapLoading||!scene)return;
+  mapLoading=true;
+  $("loading").textContent="চকমিরপুরের বাস্তব OpenStreetMap ডেটা লোড হচ্ছে…";
+  // Keep the radius modest to avoid an oversized query on mobile.
+  const q=`[out:json][timeout:25];(
+way(around:${WORLD.radius},${WORLD.lat},${WORLD.lon})[highway];
+way(around:${WORLD.radius},${WORLD.lat},${WORLD.lon})[building];
+node(around:${WORLD.radius},${WORLD.lat},${WORLD.lon})[amenity];
+node(around:${WORLD.radius},${WORLD.lat},${WORLD.lon})[shop];
+node(around:${WORLD.radius},${WORLD.lat},${WORLD.lon})[leisure];
+);out body geom;`;
+  const endpoints=[
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter"
+  ];
+  for(const url of endpoints){
+    try{
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),30000);
+      const response=await fetch(url,{
+        method:"POST",
+        headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+        body:"data="+encodeURIComponent(q),
+        signal:controller.signal
+      });
+      clearTimeout(timer);
+      if(!response.ok)throw new Error("HTTP "+response.status);
+      const data=await response.json();
+      if(!data.elements||!data.elements.length)throw new Error("No map data");
+      // Remove approximate demo roads and houses to avoid overlay clutter.
+      roads.forEach(o=>scene.remove(o));roads=[];
+      buildings.forEach(o=>scene.remove(o));buildings=[];
+      // Keep grass, trees, school and field as game props.
+      let count=0;
+      for(const el of data.elements){
+        try{addOSMFeature(el);count++}catch(err){console.warn("OSM feature skipped",err)}
+      }
+      mapLoaded=true;
+      $("loading").textContent=`বাস্তব মানচিত্র লোড হয়েছে: ${count}টি OSM অবজেক্ট।`;
+      msg("🗺️ চকমিরপুরের OpenStreetMap ডেটা লোড হয়েছে!");
+      return;
+    }catch(err){
+      console.warn("OSM endpoint failed:",url,err);
+      $("loading").textContent="ম্যাপ সার্ভার ব্যস্ত বা নেটওয়ার্ক ব্লক করেছে—অন্য সার্ভারে চেষ্টা চলছে…";
+    }
+  }
+  $("loading").textContent="বাস্তব ম্যাপ লোড করা যায়নি। ডেমো গ্রাম দিয়ে গেম চলবে; ইন্টারনেট চালু রেখে Reload করে দেখুন।";
+  mapLoading=false;
+}
+function startGame(){
+  if(!renderer){msg("Three.js লোড হওয়ার জন্য অপেক্ষা করুন");return}
+  started=true;$("lobby").style.display="none";
+  msg("🎮 স্বাগতম চকমিরপুরে! নীল চেকপয়েন্টে যাও।");
+  if(!mapLoaded)loadRealMap();
+}
+function openModal(title,html){
+  $("modalTitle").textContent=title;$("modalBody").innerHTML=html;$("modal").style.display="flex";
+}
+function openMissions(){
+  openModal("🎯 MISSIONS",`
+    <p>1. 🟦 প্রথম চেকপয়েন্ট — গ্রামের রাস্তার মোড়ে</p>
+    <p>2. 🏫 স্কুলের সামনে যাও</p>
+    <p>3. ⚽ ফুটবল মাঠে যাও</p>
+    <p>4. 🏁 শেষ চেকপয়েন্টে পৌঁছাও</p>
+    <p>অগ্রগতি: ${missionsDone}/4</p>`);
+}
+function openSettings(){
+  openModal("⚙ SETTINGS",`
+    <p>গ্রাফিক্স</p>
+    <button onclick="setQuality('high')">HIGH</button>
+    <button onclick="setQuality('low')">LOW (Mobile)</button>
+    <p>ক্যামেরা সংবেদনশীলতা</p>
+    <button onclick="changeSensitivity(-.1)">−</button>
+    <button onclick="changeSensitivity(.1)">+</button>
+    <p>ম্যাপ: OpenStreetMap • ডেটা ইন্টারনেটের মাধ্যমে লোড হয়।</p>`);
+}
+window.setQuality=function(q){
+  quality=q;
+  if(renderer){
+    renderer.setPixelRatio(Math.min(devicePixelRatio,q==="high"?1.7:1));
+    renderer.shadowMap.enabled=q==="high";
+  }
+  msg("গ্রাফিক্স: "+q.toUpperCase());
+};
+window.changeSensitivity=function(v){touchSensitivity=Math.max(.3,Math.min(2,touchSensitivity+v));msg("Camera sensitivity: "+touchSensitivity.toFixed(1))};
+let touchSensitivity=1;
+$("playBtn").addEventListener("click",startGame);
+$("missionBtn").addEventListener("click",openMissions);
+$("settingsBtn").addEventListener("click",openSettings);
+$("closeModal").addEventListener("click",()=>$("modal").style.display="none");
+$("menuBtn").addEventListener("click",()=>{
+  started=false;$("lobby").style.display="flex";
+});
+$("jumpBtn").addEventListener("click",()=>{
+  if(player&&player.position.y<=.01)jumpVelocity=8;
+});
+$("runBtn").addEventListener("touchstart",e=>{e.preventDefault();running=true},{passive:false});
+$("runBtn").addEventListener("touchend",()=>running=false);
+$("runBtn").addEventListener("mousedown",()=>running=true);
+$("runBtn").addEventListener("mouseup",()=>running=false);
+$("carBtn").addEventListener("click",()=>{
+  inCar=!inCar;
+  msg(inCar?"🚗 গাড়ি মোড চালু":"🚶 হাঁটার মোড চালু");
+});
+window.addEventListener("keydown",e=>{
+  keys[e.key]=true;
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key))e.preventDefault();
+  if(e.key===" "&&player&&player.position.y<=.01)jumpVelocity=8;
+  if(e.key.toLowerCase()==="shift")running=true;
+});
+window.addEventListener("keyup",e=>{
+  keys[e.key]=false;
+  if(e.key.toLowerCase()==="shift")running=false;
+});
+// Mobile joystick
+const base=$("joyBase"),knob=$("joyKnob");
+let joyPointer=null;
+function joystick(e){
+  const r=base.getBoundingClientRect();
+  let x=e.clientX-(r.left+r.width/2),y=e.clientY-(r.top+r.height/2);
+  const max=r.width*.34,dist=Math.hypot(x,y);
+  if(dist>max){x=x/dist*max;y=y/dist*max}
+  knob.style.left=(r.width/2-25+x)+"px";
+  knob.style.top=(r.height/2-25+y)+"px";
+  joyX=x/max;joyY=y/max;
+}
+base.addEventListener("pointerdown",e=>{
+  joyPointer=e.pointerId;base.setPointerCapture(joyPointer);joystick(e);
+});
+base.addEventListener("pointermove",e=>{if(e.pointerId===joyPointer)joystick(e)});
+function resetJoy(){
+  joyPointer=null;joyX=0;joyY=0;knob.style.left="calc(50% - 25px)";knob.style.top="calc(50% - 25px)";
+}
+base.addEventListener("pointerup",resetJoy);base.addEventListener("pointercancel",resetJoy);
+// Drag in the scene to orbit camera
+let camDrag=null;
+rendererDragSetup();
+function rendererDragSetup(){
+  const el=$("game");
+  el.addEventListener("pointerdown",e=>{
+    if(e.target.closest("button")||e.target.closest("#joyBase"))return;
+    camDrag={x:e.clientX,y:e.clientY,id:e.pointerId};
+  });
+  window.addEventListener("pointermove",e=>{
+    if(!camDrag||camDrag.id!==e.pointerId)return;
+    const dx=e.clientX-camDrag.x,dy=e.clientY-camDrag.y;
+    yaw-=dx*.006*touchSensitivity;
+    pitch=Math.max(-.15,Math.min(.8,pitch+dy*.004*touchSensitivity));
+    camDrag.x=e.clientX;camDrag.y=e.clientY;
+  });
+  window.addEventListener("pointerup",()=>camDrag=null);
+}
+init();
+})();
+</script>
+</body>
+  </html>
